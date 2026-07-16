@@ -4,6 +4,7 @@ import * as OCR from "alt1/ocr";
 import { ImgRefData } from "alt1/base";
 
 import "./index.html";
+import "./install.html";
 import "./appconfig.json";
 import "./icon.png";
 import "./css/style.css";

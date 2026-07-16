@@ -1,8 +1,16 @@
 # ComponentCounter
 
-Installation:
+## Installation
 
-alt1://addapp/https://D4nGuerrero.github.io/ComponentCounter/appconfig.json
+GitHub strips custom `alt1://` links, so use the install page on GitHub Pages:
+
+**[Add to Alt1 →](https://D4nGuerrero.github.io/ComponentCounter/install.html)**
+
+That page has a button that opens:
+
+`alt1://addapp/https://D4nGuerrero.github.io/ComponentCounter/appconfig.json`
+
+Requires [Alt1 Toolkit](https://runeapps.org/alt1) installed and running.
 
 Tracks Invention materials from the following sources:
 
