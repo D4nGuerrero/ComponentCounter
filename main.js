@@ -5162,15 +5162,6 @@ var __generator = (undefined && undefined.__generator) || function (thisArg, bod
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArray = (undefined && undefined.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
 
 
 
@@ -5376,18 +5367,45 @@ function processChat(opts) {
     }
     return chatArr;
 }
+/** Collapse OCR whitespace / lookalike chars so material regexes can match. */
+function normalizeChatLine(line) {
+    return String(line)
+        .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+        .replace(/[×✕✖⨯]/g, "x")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+/** Global regex exec loop — avoids String.matchAll (spotty in older Alt1 Chromium). */
+function execAll(str, regex) {
+    var re = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : "".concat(regex.flags, "g"));
+    var out = [];
+    var m;
+    while ((m = re.exec(str)) !== null) {
+        out.push(m);
+        // Safety if a zero-length match ever slips in
+        if (m[0].length === 0) {
+            re.lastIndex++;
+        }
+    }
+    return out;
+}
 function processMaterials(chatLine) {
     actions.innerText = String(Number(actions.innerText) + 1);
-    // [\w-]+ keeps hyphenated names like "Third-age" (plain \w+ stops at the dash)
-    var regex1 = /(\d+) x ([\w-]+)/g;
-    var regex2 = /You receive (\d+) ([\w-]+)/g;
-    var useRegex = regex1;
-    if (!(chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk"))) {
-        useRegex = regex2;
+    var normalized = normalizeChatLine(chatLine);
+    // Explicit class (not [\w-]) so hyphenated names like "Third-age" work in Alt1's JS engine
+    var matName = "([A-Za-z][A-Za-z0-9-]*)";
+    var qtyXName = new RegExp("(\\d+)\\s*x\\s*".concat(matName), "gi");
+    var youReceive = new RegExp("You receive\\s+(\\d+)\\s+".concat(matName), "gi");
+    // Prefer "N x Name" (scavenging / materials gained); fall back to "You receive N Name"
+    var matches = execAll(normalized, qtyXName);
+    if (matches.length === 0) {
+        matches = execAll(normalized, youReceive);
     }
-    var matches = __spreadArray([], chatLine.matchAll(useRegex), true);
     if (matches.length === 0) {
         console.warn("No material matches found in chat line:", chatLine);
+        if (normalized !== chatLine.trim()) {
+            console.warn("Normalized form:", normalized);
+        }
         return;
     }
     for (var _i = 0, matches_1 = matches; _i < matches_1.length; _i++) {
