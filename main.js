@@ -774,6 +774,17 @@ module.exports = __webpack_require__.p + "index.html";
 
 /***/ },
 
+/***/ "./install.html"
+/*!**********************!*\
+  !*** ./install.html ***!
+  \**********************/
+(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+module.exports = __webpack_require__.p + "install.html";
+
+/***/ },
+
 /***/ "canvas"
 /*!*************************!*\
   !*** external "canvas" ***!
@@ -5111,9 +5122,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt1_ocr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! alt1/ocr */ "../node_modules/alt1/dist/ocr/index.js");
 /* harmony import */ var alt1_ocr__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(alt1_ocr__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _index_html__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./index.html */ "./index.html");
-/* harmony import */ var _appconfig_json__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./appconfig.json */ "./appconfig.json");
-/* harmony import */ var _icon_png__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./icon.png */ "./icon.png");
-/* harmony import */ var _css_style_css__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./css/style.css */ "./css/style.css");
+/* harmony import */ var _install_html__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./install.html */ "./install.html");
+/* harmony import */ var _appconfig_json__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./appconfig.json */ "./appconfig.json");
+/* harmony import */ var _icon_png__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./icon.png */ "./icon.png");
+/* harmony import */ var _css_style_css__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./css/style.css */ "./css/style.css");
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -5159,6 +5171,7 @@ var __spreadArray = (undefined && undefined.__spreadArray) || function (to, from
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
+
 
 
 
