@@ -245,10 +245,25 @@ function processMaterials(chatLine) {
 		useRegex = regex2;
 	}
 
+	if (!matches) {
+		console.warn("No material matches found in chat line:", chatLine);
+		return;
+	}
+
 	for (let match of matches) {
 		match = match.match(useRegex.source);
 		const quantity = match[1];
-		const name = match[2];
+		const rawName = match[2];
+		const name = resolveMaterialName(rawName);
+
+		if (!name) {
+			console.warn(`Unknown material from OCR: "${rawName}" (chat: ${chatLine})`);
+			continue;
+		}
+
+		if (name !== rawName) {
+			console.log(`Corrected OCR material name: "${rawName}" → "${name}"`);
+		}
 
 		const material = {
 			quantity: quantity,
@@ -267,11 +282,80 @@ function processMaterials(chatLine) {
 	}
 }
 
+/**
+ * Map OCR'd material names onto the known materials list.
+ * Alt1 OCR often confuses lookalike letters (e.g. Healthy → Heaithy, l/i).
+ */
+function resolveMaterialName(rawName: string): string | null {
+	const mats = getSaveData("materials");
+	if (!mats || !rawName) {
+		return null;
+	}
+
+	if (mats[rawName] != null) {
+		return rawName;
+	}
+
+	const lower = rawName.toLowerCase();
+	for (const key of Object.keys(mats)) {
+		if (key.toLowerCase() === lower) {
+			return key;
+		}
+	}
+
+	// Fuzzy match for single-character OCR slips (l/i, rn/m, etc.)
+	const maxDistance = Math.max(1, Math.floor(rawName.length / 5));
+	let bestKey: string | null = null;
+	let bestDist = Infinity;
+
+	for (const key of Object.keys(mats)) {
+		// Skip wildly different lengths
+		if (Math.abs(key.length - rawName.length) > maxDistance) {
+			continue;
+		}
+		const dist = levenshtein(lower, key.toLowerCase());
+		if (dist < bestDist && dist <= maxDistance) {
+			bestDist = dist;
+			bestKey = key;
+		}
+	}
+
+	return bestKey;
+}
+
+function levenshtein(a: string, b: string): number {
+	const m = a.length;
+	const n = b.length;
+	const dp: number[] = new Array(n + 1);
+	for (let j = 0; j <= n; j++) {
+		dp[j] = j;
+	}
+	for (let i = 1; i <= m; i++) {
+		let prev = dp[0];
+		dp[0] = i;
+		for (let j = 1; j <= n; j++) {
+			const tmp = dp[j];
+			dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+			prev = tmp;
+		}
+	}
+	return dp[n];
+}
+
 function updateRow(matName) {
 	const mats = getSaveData("materials");
+	if (!mats || mats[matName] == null) {
+		console.warn(`updateRow: material not in save data: ${matName}`);
+		return;
+	}
 
-	const row = document.querySelector(`#${matName}`) as HTMLElement;
-	const qty = document.querySelector(`#${matName} .quantity`) as HTMLElement;
+	const row = document.querySelector(`#${CSS.escape(matName)}`) as HTMLElement | null;
+	const qty = document.querySelector(`#${CSS.escape(matName)} .quantity`) as HTMLElement | null;
+
+	if (!row || !qty) {
+		console.warn(`updateRow: no table row for material: ${matName}`);
+		return;
+	}
 
 	qty.innerText = mats[matName].qty;
 
@@ -375,7 +459,12 @@ async function updateSaveData(...dataset) {
 		if (name == "materials" && lsData[name]) {
 			// Update Quantity of existing Material
 			if (Object.keys(value).length == 2) {
-				lsData[name][value["name"]].qty += Number(value["quantity"]);
+				const matName = value["name"];
+				if (lsData[name][matName] == null) {
+					console.warn(`updateSaveData: unknown material "${matName}", skipping qty update`);
+					continue;
+				}
+				lsData[name][matName].qty += Number(value["quantity"]);
 				localStorage.setItem(appName, JSON.stringify(lsData));
 				continue;
 			}
