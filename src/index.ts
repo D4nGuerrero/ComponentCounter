@@ -232,20 +232,50 @@ function processChat(opts) {
 	return chatArr;
 }
 
+/** Collapse OCR whitespace / lookalike chars so material regexes can match. */
+function normalizeChatLine(line: string): string {
+	return String(line)
+		.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+		.replace(/[×✕✖⨯]/g, "x")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/** Global regex exec loop — avoids String.matchAll (spotty in older Alt1 Chromium). */
+function execAll(str: string, regex: RegExp): RegExpExecArray[] {
+	const re = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`);
+	const out: RegExpExecArray[] = [];
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(str)) !== null) {
+		out.push(m);
+		// Safety if a zero-length match ever slips in
+		if (m[0].length === 0) {
+			re.lastIndex++;
+		}
+	}
+	return out;
+}
+
 function processMaterials(chatLine) {
 	actions.innerText = String(Number(actions.innerText) + 1);
-	// [\w-]+ keeps hyphenated names like "Third-age" (plain \w+ stops at the dash)
-	const regex1 = /(\d+) x ([\w-]+)/g;
-	const regex2 = /You receive (\d+) ([\w-]+)/g;
-	let useRegex = regex1;
 
-	if (!(chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk"))) {
-		useRegex = regex2;
+	const normalized = normalizeChatLine(chatLine);
+	// Explicit class (not [\w-]) so hyphenated names like "Third-age" work in Alt1's JS engine
+	const matName = "([A-Za-z][A-Za-z0-9-]*)";
+	const qtyXName = new RegExp(`(\\d+)\\s*x\\s*${matName}`, "gi");
+	const youReceive = new RegExp(`You receive\\s+(\\d+)\\s+${matName}`, "gi");
+
+	// Prefer "N x Name" (scavenging / materials gained); fall back to "You receive N Name"
+	let matches = execAll(normalized, qtyXName);
+	if (matches.length === 0) {
+		matches = execAll(normalized, youReceive);
 	}
 
-	const matches = [...chatLine.matchAll(useRegex)];
 	if (matches.length === 0) {
 		console.warn("No material matches found in chat line:", chatLine);
+		if (normalized !== chatLine.trim()) {
+			console.warn("Normalized form:", normalized);
+		}
 		return;
 	}
 
