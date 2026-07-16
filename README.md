@@ -2,7 +2,7 @@
 
 Installation:
 
-alt1://addapp/https://github.com/D4nGuerrero/ComponentCounter/appconfig.json
+alt1://addapp/https://D4nGuerrero.github.io/ComponentCounter/appconfig.json
 
 Tracks Invention materials from the following sources:
 
