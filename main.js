@@ -5150,6 +5150,15 @@ var __generator = (undefined && undefined.__generator) || function (thisArg, bod
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArray = (undefined && undefined.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 
 
 
@@ -5356,24 +5365,20 @@ function processChat(opts) {
 }
 function processMaterials(chatLine) {
     actions.innerText = String(Number(actions.innerText) + 1);
-    var regex1 = /(\d+) x (\w+)/g;
-    var regex2 = /You receive (\d+) (\w+)/g;
-    var matches;
+    // [\w-]+ keeps hyphenated names like "Third-age" (plain \w+ stops at the dash)
+    var regex1 = /(\d+) x ([\w-]+)/g;
+    var regex2 = /You receive (\d+) ([\w-]+)/g;
     var useRegex = regex1;
-    if (chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk")) {
-        matches = chatLine.match(regex1);
-    }
-    else {
-        matches = chatLine.match(regex2);
+    if (!(chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk"))) {
         useRegex = regex2;
     }
-    if (!matches) {
+    var matches = __spreadArray([], chatLine.matchAll(useRegex), true);
+    if (matches.length === 0) {
         console.warn("No material matches found in chat line:", chatLine);
         return;
     }
     for (var _i = 0, matches_1 = matches; _i < matches_1.length; _i++) {
         var match = matches_1[_i];
-        match = match.match(useRegex.source);
         var quantity = match[1];
         var rawName = match[2];
         var name_1 = resolveMaterialName(rawName);
@@ -5397,9 +5402,14 @@ function processMaterials(chatLine) {
         updateRow(material.name);
     }
 }
+/** Strip separators so "Third-age", "Thirdage", "Third age" compare equal. */
+function normalizeMaterialKey(name) {
+    return name.toLowerCase().replace(/[-_\s]+/g, "");
+}
 /**
  * Map OCR'd material names onto the known materials list.
- * Alt1 OCR often confuses lookalike letters (e.g. Healthy → Heaithy, l/i).
+ * Alt1 OCR often confuses lookalike letters (e.g. Healthy → Heaithy, l/i)
+ * and may drop or alter hyphens (Third-age → Thirdage).
  */
 function resolveMaterialName(rawName) {
     var mats = getSaveData("materials");
@@ -5410,23 +5420,24 @@ function resolveMaterialName(rawName) {
         return rawName;
     }
     var lower = rawName.toLowerCase();
+    var normalized = normalizeMaterialKey(rawName);
     for (var _i = 0, _a = Object.keys(mats); _i < _a.length; _i++) {
         var key = _a[_i];
-        if (key.toLowerCase() === lower) {
+        if (key.toLowerCase() === lower || normalizeMaterialKey(key) === normalized) {
             return key;
         }
     }
     // Fuzzy match for single-character OCR slips (l/i, rn/m, etc.)
-    var maxDistance = Math.max(1, Math.floor(rawName.length / 5));
+    var maxDistance = Math.max(1, Math.floor(normalized.length / 5));
     var bestKey = null;
     var bestDist = Infinity;
     for (var _b = 0, _c = Object.keys(mats); _b < _c.length; _b++) {
         var key = _c[_b];
-        // Skip wildly different lengths
-        if (Math.abs(key.length - rawName.length) > maxDistance) {
+        var keyNorm = normalizeMaterialKey(key);
+        if (Math.abs(keyNorm.length - normalized.length) > maxDistance) {
             continue;
         }
-        var dist = levenshtein(lower, key.toLowerCase());
+        var dist = levenshtein(normalized, keyNorm);
         if (dist < bestDist && dist <= maxDistance) {
             bestDist = dist;
             bestKey = key;
