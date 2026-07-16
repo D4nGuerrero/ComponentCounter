@@ -233,25 +233,22 @@ function processChat(opts) {
 
 function processMaterials(chatLine) {
 	actions.innerText = String(Number(actions.innerText) + 1);
-	const regex1 = /(\d+) x (\w+)/g;
-	const regex2 = /You receive (\d+) (\w+)/g;
-	let matches;
+	// [\w-]+ keeps hyphenated names like "Third-age" (plain \w+ stops at the dash)
+	const regex1 = /(\d+) x ([\w-]+)/g;
+	const regex2 = /You receive (\d+) ([\w-]+)/g;
 	let useRegex = regex1;
 
-	if (chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk")) {
-		matches = chatLine.match(regex1);
-	} else {
-		matches = chatLine.match(regex2);
+	if (!(chatLine.includes("Materials gained") || chatLine.includes("Scavenging perk"))) {
 		useRegex = regex2;
 	}
 
-	if (!matches) {
+	const matches = [...chatLine.matchAll(useRegex)];
+	if (matches.length === 0) {
 		console.warn("No material matches found in chat line:", chatLine);
 		return;
 	}
 
-	for (let match of matches) {
-		match = match.match(useRegex.source);
+	for (const match of matches) {
 		const quantity = match[1];
 		const rawName = match[2];
 		const name = resolveMaterialName(rawName);
@@ -282,9 +279,15 @@ function processMaterials(chatLine) {
 	}
 }
 
+/** Strip separators so "Third-age", "Thirdage", "Third age" compare equal. */
+function normalizeMaterialKey(name: string): string {
+	return name.toLowerCase().replace(/[-_\s]+/g, "");
+}
+
 /**
  * Map OCR'd material names onto the known materials list.
- * Alt1 OCR often confuses lookalike letters (e.g. Healthy → Heaithy, l/i).
+ * Alt1 OCR often confuses lookalike letters (e.g. Healthy → Heaithy, l/i)
+ * and may drop or alter hyphens (Third-age → Thirdage).
  */
 function resolveMaterialName(rawName: string): string | null {
 	const mats = getSaveData("materials");
@@ -297,23 +300,25 @@ function resolveMaterialName(rawName: string): string | null {
 	}
 
 	const lower = rawName.toLowerCase();
+	const normalized = normalizeMaterialKey(rawName);
+
 	for (const key of Object.keys(mats)) {
-		if (key.toLowerCase() === lower) {
+		if (key.toLowerCase() === lower || normalizeMaterialKey(key) === normalized) {
 			return key;
 		}
 	}
 
 	// Fuzzy match for single-character OCR slips (l/i, rn/m, etc.)
-	const maxDistance = Math.max(1, Math.floor(rawName.length / 5));
+	const maxDistance = Math.max(1, Math.floor(normalized.length / 5));
 	let bestKey: string | null = null;
 	let bestDist = Infinity;
 
 	for (const key of Object.keys(mats)) {
-		// Skip wildly different lengths
-		if (Math.abs(key.length - rawName.length) > maxDistance) {
+		const keyNorm = normalizeMaterialKey(key);
+		if (Math.abs(keyNorm.length - normalized.length) > maxDistance) {
 			continue;
 		}
-		const dist = levenshtein(lower, key.toLowerCase());
+		const dist = levenshtein(normalized, keyNorm);
 		if (dist < bestDist && dist <= maxDistance) {
 			bestDist = dist;
 			bestKey = key;
